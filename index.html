@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Базис-Вьювер: Финальная версия</title>
+    <meta charset="UTF-8">
+    <style>
+        body { margin: 0; overflow: hidden; background: #333; font-family: sans-serif; }
+        #gui-container { position: absolute; top: 10px; right: 10px; }
+    </style>
+</head>
+<body>
+    <div id="gui-container"></div>
+
+    <script type="importmap">
+        { "imports": {
+            "three": "https://unpkg.com/three@0.150.1/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.150.1/examples/jsm/"
+        }}
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { ColladaLoader } from 'three/addons/loaders/ColladaLoader.js';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { GUI } from 'https://unpkg.com/dat.gui/build/dat.gui.module.js';
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x222222); // Тёмный фон, чтобы лучше видеть детали
+        
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 100000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        scene.add(new THREE.AmbientLight(0xffffff, 1));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8); dirLight.position.set(1000, 2000, 1500); scene.add(dirLight);
+
+        const gui = new GUI({ autoPlace: false, width: 300 });
+        document.getElementById('gui-container').appendChild(gui.domElement);
+        const layersFolder = gui.addFolder('Детали из Базиса');
+
+        const loader = new ColladaLoader();
+        loader.load('./model.dae', (collada) => {
+            const model = collada.scene;
+            scene.add(model);
+
+            // АВТО-ФОКУС: Код сам найдет модель и направит на неё камеру
+            const box = new THREE.Box3().setFromObject(model);
+            const center = box.getCenter(new THREE.Vector3());
+            const size = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z);
+            
+            camera.position.set(center.x, center.y, maxDim * 2);
+            controls.target.set(center.x, center.y, center.z);
+            controls.update();
+
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    const name = child.name || "Панель";
+                    const settings = { visible: true };
+                    layersFolder.add(settings, 'visible').name(name).onChange(v => child.visible = v);
+                }
+            });
+            layersFolder.open();
+        });
+
+        function animate() { requestAnimationFrame(animate); renderer.render(scene, camera); }
+        animate();
+    </script>
+</body>
+</html>
