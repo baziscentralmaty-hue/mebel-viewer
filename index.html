@@ -2,206 +2,114 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>3D Viewer BAZIS</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Базис 3D: GLB Viewer</title>
     <style>
-        body { margin: 0; padding: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #eceff1; }
-        
-        /* Панель управления */
-        .controls {
-            position: absolute; top: 15px; left: 15px; z-index: 10;
-            background: white; padding: 12px; border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: flex; gap: 10px;
-        }
-
-        .btn {
-            background: #2c3e50; color: white; border: none; padding: 10px 18px;
-            border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;
-        }
-        
-        .btn:hover { background: #34495e; }
-        
-        #file-input { display: none; }
-
-        /* Список слоев/деталей */
-        .parts-panel {
-            position: absolute; top: 80px; right: 15px; width: 260px;
-            background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-            max-height: 70vh; display: none; flex-direction: column; z-index: 10;
-        }
-
-        .parts-header { padding: 12px; border-bottom: 1px solid #eee; font-weight: bold; color: #2c3e50; }
-        .parts-list { overflow-y: auto; padding: 10px; }
-        .part-item { 
-            display: flex; justify-content: space-between; align-items: center; 
-            padding: 8px; border-bottom: 1px solid #f5f5f5; font-size: 13px;
-        }
-
-        /* Индикатор состояния */
-        #status {
-            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-            background: rgba(44, 62, 80, 0.9); color: white; padding: 8px 20px;
-            border-radius: 20px; font-size: 12px; z-index: 5;
-        }
+        body { margin: 0; overflow: hidden; background: #eef2f3; font-family: sans-serif; }
+        .panel { position: absolute; top: 15px; left: 15px; z-index: 10; background: white; padding: 15px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); width: 280px; }
+        .btn { background: #4a90e2; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; width: 100%; font-weight: bold; }
+        .list { margin-top: 15px; max-height: 400px; overflow-y: auto; border-top: 1px solid #eee; padding-top: 10px; }
+        .item { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; color: #333; }
+        #status { font-size: 11px; color: #999; margin-top: 8px; text-align: center; }
     </style>
 </head>
 <body>
 
-    <div class="controls">
-        <label class="btn" for="file-input">📂 Открыть мебель (.wrl)</label>
-        <input type="file" id="file-input" accept=".wrl">
-        <button class="btn" onclick="toggleParts()">📦 Детали</button>
-    </div>
+<div class="panel">
+    <button class="btn" onclick="document.getElementById('input').click()">📂 ВЫБРАТЬ .GLB МОДЕЛЬ</button>
+    <input type="file" id="input" accept=".glb" style="display:none">
+    <div class="list" id="layers"></div>
+    <div id="status">Конвертируй WRL в GLB для работы слоев</div>
+</div>
 
-    <div class="parts-panel" id="partsPanel">
-        <div class="parts-header">Список элементов</div>
-        <div class="parts-list" id="partsList"></div>
-    </div>
+<script type="importmap">
+    { "imports": {
+        "three": "https://unpkg.com/three@0.150.1/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.150.1/examples/jsm/"
+    }}
+</script>
 
-    <div id="status">Ожидание файла из Базиса...</div>
+<script type="module">
+    import * as THREE from 'three';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-    <script type="importmap">
-        { "imports": {
-            "three": "https://unpkg.com/three@0.150.1/build/three.module.js",
-            "three/addons/": "https://unpkg.com/three@0.150.1/examples/jsm/"
-        }}
-    </script>
+    let scene, camera, renderer, controls, model;
+    let elements = {};
 
-    <script type="module">
-        import * as THREE from 'three';
-        import { VRMLLoader } from 'three/addons/loaders/VRMLLoader.js';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    function init() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xeef2f3);
 
-        let scene, camera, renderer, controls, currentModel;
-        let elementsMap = {};
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 100000);
+        camera.position.set(1200, 1200, 1200);
 
-        function init() {
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0xf1f3f4);
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
 
-            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000000);
-            camera.position.set(1000, 1000, 1000);
+        controls = new OrbitControls(camera, renderer.domElement);
+        
+        scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+        const light = new THREE.DirectionalLight(0xffffff, 0.5);
+        light.position.set(1000, 2000, 1000);
+        scene.add(light);
 
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
-            document.body.appendChild(renderer.domElement);
-
-            controls = new OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-
-            // Свет
-            scene.add(new THREE.AmbientLight(0xffffff, 1.2));
-            const sun = new THREE.DirectionalLight(0xffffff, 0.6);
-            sun.position.set(2000, 5000, 2000);
-            scene.add(sun);
-
-            window.addEventListener('resize', onWindowResize);
-            animate();
-        }
-
-        const loader = new VRMLLoader();
-
-        document.getElementById('file-input').onchange = (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            document.getElementById('status').innerText = "Анализ файла...";
-
-            reader.onload = (event) => {
-                let content = event.target.result;
-                
-                // Проверка на корректность текста (если закрались кракозябры)
-                if (content.includes('')) {
-                    console.warn("Похоже на ошибку кодировки. Пробую Windows-1251...");
-                    const retryReader = new FileReader();
-                    retryReader.onload = (reEvent) => loadWRL(reEvent.target.result);
-                    retryReader.readAsText(file, 'windows-1251');
-                } else {
-                    loadWRL(content);
-                }
-            };
-            reader.readAsText(file);
-        };
-
-        function loadWRL(text) {
-            try {
-                if (currentModel) scene.remove(currentModel);
-                elementsMap = {};
-                document.getElementById('partsList').innerHTML = '';
-
-                currentModel = loader.parse(text);
-                
-                currentModel.traverse(child => {
-                    if (child.isMesh) {
-                        // Делаем детали красивыми (двусторонними)
-                        child.material.side = THREE.DoubleSide;
-                        
-                        // Получаем нормальное имя детали из Базиса
-                        let name = child.name || child.parent.name || "Безымянная деталь";
-                        
-                        if (!elementsMap[name]) {
-                            elementsMap[name] = [];
-                            addPartToUI(name);
-                        }
-                        elementsMap[name].push(child);
-                    }
-                });
-
-                scene.add(currentModel);
-                focusModel();
-                document.getElementById('status').innerText = "Модель успешно загружена";
-            } catch (err) {
-                console.error(err);
-                document.getElementById('status').innerText = "Ошибка парсера: возможно, файл не VRML 2.0";
-            }
-        }
-
-        function addPartToUI(name) {
-            const list = document.getElementById('partsList');
-            const item = document.createElement('div');
-            item.className = 'part-item';
-            item.innerHTML = `
-                <span>${name}</span>
-                <input type="checkbox" checked onclick="window.togglePart('${name}', this.checked)">
-            `;
-            list.appendChild(item);
-        }
-
-        function focusModel() {
-            const box = new THREE.Box3().setFromObject(currentModel);
-            const center = box.getCenter(new THREE.Vector3());
-            const size = box.getSize(new THREE.Vector3());
-            const maxDim = Math.max(size.x, size.y, size.z);
-            
-            camera.position.set(center.x + maxDim, center.y + maxDim, center.z + maxDim);
-            controls.target.copy(center);
-            controls.update();
-        }
-
-        window.togglePart = (name, visible) => {
-            elementsMap[name].forEach(obj => obj.visible = visible);
-        };
-
-        window.toggleParts = () => {
-            const p = document.getElementById('partsPanel');
-            p.style.display = p.style.display === 'flex' ? 'none' : 'flex';
-        };
-
-        function onWindowResize() {
+        window.onresize = () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
-        }
+        };
+        animate();
+    }
 
-        function animate() {
-            requestAnimationFrame(animate);
-            controls.update();
-            renderer.render(scene, camera);
-        }
+    document.getElementById('input').onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
 
-        init();
-    </script>
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            new GLTFLoader().parse(event.target.result, '', (gltf) => {
+                if (model) scene.remove(model);
+                model = gltf.scene;
+                
+                document.getElementById('layers').innerHTML = "";
+                elements = {};
+
+                model.traverse(child => {
+                    // Собираем только уникальные именованные блоки (иерархию)
+                    if (child.name && (child.isMesh || child.isGroup)) {
+                        if (!elements[child.name]) {
+                            elements[child.name] = child;
+                            createUI(child.name);
+                        }
+                    }
+                });
+
+                scene.add(model);
+                const box = new THREE.Box3().setFromObject(model);
+                controls.target.copy(box.getCenter(new THREE.Vector3()));
+                document.getElementById('status').innerText = "Готово!";
+            });
+        };
+        reader.readAsArrayBuffer(file);
+    };
+
+    function createUI(name) {
+        const row = document.createElement('div');
+        row.className = 'item';
+        row.innerHTML = `<span>${name}</span><input type="checkbox" checked onclick="window.toggle('${name}', this.checked)">`;
+        document.getElementById('layers').appendChild(row);
+    }
+
+    window.toggle = (name, val) => { if(elements[name]) elements[name].visible = val; };
+
+    function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+    }
+
+    init();
+</script>
 </body>
 </html>
