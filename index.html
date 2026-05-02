@@ -1,83 +1,32 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <title>BAZIS VIEWER ULTIMATE</title>
+    <title>BAZIS VIEWER OBJ</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
-        body { margin: 0; overflow: hidden; background: #f0f2f5; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        
-        .ui-layer { position: absolute; z-index: 100; width: 100%; pointer-events: none; }
-        .ui-layer * { pointer-events: auto; }
-
-        .top-nav { padding: 15px; display: flex; gap: 10px; background: rgba(255,255,255,0.9); box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        
+        body { margin: 0; overflow: hidden; background: #eef1f4; font-family: sans-serif; }
+        .ui { position: absolute; z-index: 10; width: 100%; pointer-events: none; padding: 20px; box-sizing: border-box; }
+        .ui * { pointer-events: auto; }
         .btn { 
-            background: #2c3e50; color: white; border: none; padding: 12px 20px; 
-            border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 14px;
+            background: #2c3e50; color: white; border: none; padding: 12px 24px; 
+            border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-
         #file-input { display: none; }
-
-        .side-menu { 
-            position: absolute; right: 15px; top: 80px; width: 280px; 
-            background: white; border-radius: 12px; box-shadow: 0 5px 25px rgba(0,0,0,0.2);
-            display: none; flex-direction: column; max-height: 70vh;
-        }
-
-        .tabs { display: flex; border-bottom: 1px solid #eee; }
-        .tab { flex: 1; padding: 12px; border: none; background: none; cursor: pointer; font-weight: bold; color: #999; }
-        .tab.active { color: #27ae60; border-bottom: 2px solid #27ae60; }
-
-        .list-container { overflow-y: auto; padding: 15px; }
-        .item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f9f9f9; }
-
-        .status-msg { 
+        .info { 
             position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-            background: #2c3e50; color: white; padding: 10px 25px; border-radius: 30px; font-size: 13px;
+            background: rgba(0,0,0,0.7); color: white; padding: 8px 20px; border-radius: 20px; font-size: 14px;
         }
-
-        /* Material Grid */
-        .m-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .m-card { border: 1px solid #eee; border-radius: 8px; padding: 5px; text-align: center; cursor: pointer; }
-        .m-color { width: 100%; height: 40px; border-radius: 4px; margin-bottom: 5px; }
-
-        /* Toggle */
-        .switch { position: relative; width: 40px; height: 20px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #ccc; border-radius: 20px; transition: .3s; }
-        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: .3s; }
-        input:checked + .slider { background: #27ae60; }
-        input:checked + .slider:before { transform: translateX(20px); }
     </style>
 </head>
 <body>
 
-    <div class="ui-layer">
-        <div class="top-nav">
-            <label class="btn" for="file-input">📂 Выбрать файл</label>
-            <input type="file" id="file-input" accept=".dae">
-            <button class="btn" onclick="toggleUI()">⚙️ Настройки</button>
-        </div>
-
-        <div class="side-menu" id="sideMenu">
-            <div class="tabs">
-                <button class="tab active" onclick="setTab('l')">Слои</button>
-                <button class="tab" onclick="setTab('m')">Цвета</button>
-            </div>
-            <div id="layer-list" class="list-container"></div>
-            <div id="mat-list" class="list-container" style="display:none">
-                <div class="m-grid">
-                    <div class="m-card" onclick="paint(0xffffff)"><div class="m-color" style="background:#fff;border:1px solid #ddd"></div>Белый</div>
-                    <div class="m-card" onclick="paint(0xecd3b0)"><div class="m-color" style="background:#ecd3b0"></div>Дуб</div>
-                    <div class="m-card" onclick="paint(0x2f3640)"><div class="m-color" style="background:#2f3640"></div>Графит</div>
-                    <div class="m-card" onclick="paint(0x7f8c8d)"><div class="m-color" style="background:#7f8c8d"></div>Серый</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="status-msg" id="status">Ожидание модели...</div>
+    <div class="ui">
+        <label class="btn" for="file-input">📂 Загрузить OBJ</label>
+        <input type="file" id="file-input" accept=".obj">
     </div>
+
+    <div class="info" id="status">Выберите .obj файл из Базиса</div>
 
     <script type="importmap">
         { "imports": {
@@ -88,17 +37,16 @@
 
     <script type="module">
         import * as THREE from 'three';
-        import { ColladaLoader } from 'three/addons/loaders/ColladaLoader.js';
+        import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
         let scene, camera, renderer, controls, model;
-        let groups = {};
 
         function init() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0xf0f2f5);
+            scene.background = new THREE.Color(0xeef1f4);
 
-            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000000);
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 1000000);
             camera.position.set(1000, 1000, 1000);
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -109,88 +57,77 @@
             controls = new OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
 
-            scene.add(new THREE.AmbientLight(0xffffff, 1.2));
-            const light = new THREE.DirectionalLight(0xffffff, 0.5);
-            light.position.set(200, 500, 300);
-            scene.add(light);
+            scene.add(new THREE.AmbientLight(0xffffff, 1.5));
+            const sun = new THREE.DirectionalLight(0xffffff, 0.5);
+            sun.position.set(500, 1000, 500);
+            scene.add(sun);
 
             animate();
         }
 
-        const loader = new ColladaLoader();
+        const loader = new OBJLoader();
 
         document.getElementById('file-input').onchange = (e) => {
             const file = e.target.files[0];
             if (!file) return;
 
-            document.getElementById('status').innerText = "Загрузка...";
+            document.getElementById('status').innerText = "Читаю файл...";
             const reader = new FileReader();
-            
+
             reader.onload = (event) => {
                 if (model) scene.remove(model);
-                groups = {};
 
-                loader.parse(event.target.result, (result) => {
-                    model = result.scene;
+                try {
+                    model = loader.parse(event.target.result);
                     
                     model.traverse(child => {
                         if (child.isMesh) {
+                            // Назначаем стандартный "мебельный" материал
                             child.material = new THREE.MeshStandardMaterial({ 
                                 color: 0xffffff, 
-                                roughness: 0.7,
-                                metalness: 0.0
+                                roughness: 0.6 
                             });
                             
+                            // Рисуем четкие контуры деталей
                             const edges = new THREE.EdgesGeometry(child.geometry);
-                            const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x000000 }));
+                            const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x333333 }));
                             child.add(line);
-
-                            const name = child.parent.name || "Прочее";
-                            if (!groups[name]) groups[name] = [];
-                            groups[name].push(child);
                         }
                     });
 
                     scene.add(model);
-                    buildUI();
-                    
-                    // Авто-фокус
+
+                    // Центрируем камеру на новом шкафу
                     const box = new THREE.Box3().setFromObject(model);
                     const center = box.getCenter(new THREE.Vector3());
                     const size = box.getSize(new THREE.Vector3());
                     const maxDim = Math.max(size.x, size.y, size.z);
+                    
                     camera.position.set(center.x + maxDim, center.y + maxDim, center.z + maxDim);
                     controls.target.copy(center);
                     
-                    document.getElementById('status').innerText = "Файл загружен: " + file.name;
-                }, '');
+                    document.getElementById('status').innerText = "Загружено: " + file.name;
+                } catch (err) {
+                    document.getElementById('status').innerText = "Ошибка в OBJ файле!";
+                    console.error(err);
+                }
             };
             reader.readAsText(file);
         };
 
-        function buildUI() {
-            const list = document.getElementById('layer-list');
-            list.innerHTML = '<b>Блоки из Базиса:</b>';
-            Object.keys(groups).sort().forEach(n => {
-                const row = document.createElement('div');
-                row.className = 'item-row';
-                row.innerHTML = `<span>${n}</span><label class="switch"><input type="checkbox" checked onchange="window.tog('${n}', this.checked)"><span class="slider"></span></label>`;
-                list.appendChild(row);
-            });
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
         }
 
-        window.tog = (n, v) => groups[n].forEach(o => o.visible = v);
-        window.paint = (c) => { if(model) model.traverse(o => { if(o.isMesh) o.material.color.set(c); }) };
-        window.toggleUI = () => { const m = document.getElementById('sideMenu'); m.style.display = m.style.display === 'flex' ? 'none' : 'flex'; };
-        window.setTab = (t) => {
-            document.getElementById('layer-list').style.display = t === 'l' ? 'block' : 'none';
-            document.getElementById('mat-list').style.display = t === 'm' ? 'block' : 'none';
-            document.querySelectorAll('.tab').forEach((b, i) => b.classList.toggle('active', (t === 'l' && i === 0) || (t === 'm' && i === 1)));
-        };
-
-        function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }
         init();
-        window.onresize = () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); };
+
+        window.onresize = () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        };
     </script>
 </body>
 </html>
