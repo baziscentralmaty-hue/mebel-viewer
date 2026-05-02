@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Базис-Вьювер Pro</title>
+    <title>Базис-Вьювер: Контурная графика</title>
     <meta charset="UTF-8">
     <style>
-        body { margin: 0; overflow: hidden; background: #2a2a2a; font-family: sans-serif; }
+        body { margin: 0; overflow: hidden; background: #dcdcdc; font-family: sans-serif; }
         #gui-container { position: absolute; top: 10px; right: 10px; }
     </style>
 </head>
@@ -23,53 +23,47 @@
         import { GUI } from 'https://unpkg.com/dat.gui/build/dat.gui.module.js';
 
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x333333);
+        scene.background = new THREE.Color(0xdcdcdc); // Светло-серый фон
         
-        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 100000);
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
         const controls = new OrbitControls(camera, renderer.domElement);
-        
-        // Улучшенный свет
-        scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-        const sun = new THREE.DirectionalLight(0xffffff, 0.8);
-        sun.position.set(5000, 5000, 5000);
-        scene.add(sun);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.9));
 
         const gui = new GUI({ autoPlace: false, width: 300 });
         document.getElementById('gui-container').appendChild(gui.domElement);
-        const layersFolder = gui.addFolder('Структура изделия');
+        const layersFolder = gui.addFolder('Детали Базиса');
 
         const loader = new ColladaLoader();
         loader.load('./model.dae', (collada) => {
             const model = collada.scene;
             
-            // Добавляем контуры (грани) каждой детали
             model.traverse((child) => {
                 if (child.isMesh) {
-                    // Создаем черные линии на ребрах
-                    const edges = new THREE.EdgesGeometry(child.geometry);
-                    const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x000000 }));
-                    child.add(line); 
+                    // 1. Делаем материал более матовым и серым, чтобы не было пересвета
+                    child.material = new THREE.MeshLambertMaterial({ color: 0xeeeeee });
 
-                    // Группировка в меню
-                    const name = child.name || "Деталь";
+                    // 2. Добавляем ЖИРНЫЕ ЧЕРНЫЕ ГРАНИ
+                    const edges = new THREE.EdgesGeometry(child.geometry);
+                    const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2 }));
+                    child.add(line);
+
                     const settings = { visible: true };
-                    layersFolder.add(settings, 'visible').name(name).onChange(v => {
+                    layersFolder.add(settings, 'visible').name(child.name || "Панель").onChange(v => {
                         child.visible = v;
-                        line.visible = v;
                     });
                 }
             });
 
-            // Авто-фокус
             const box = new THREE.Box3().setFromObject(model);
             const center = box.getCenter(new THREE.Vector3());
             const size = box.getSize(new THREE.Vector3());
             const maxDim = Math.max(size.x, size.y, size.z);
-            camera.position.set(center.x + maxDim, center.y + maxDim, center.z + maxDim * 1.5);
+            
+            camera.position.set(center.x + maxDim, center.y + maxDim, center.z + maxDim);
             controls.target.copy(center);
             controls.update();
             
