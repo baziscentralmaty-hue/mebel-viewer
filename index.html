@@ -1,58 +1,47 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <title>BAZIS OBJ: Глубокое разделение</title>
+    <title>BAZIS SMART VIEWER</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
         :root { --primary: #2c3e50; --accent: #27ae60; --bg: #f5f6fa; }
-        body { margin: 0; overflow: hidden; background: var(--bg); font-family: 'Segoe UI', sans-serif; }
-        .header { position: absolute; top: 0; left: 0; right: 0; height: 60px; background: white; display: flex; align-items: center; padding: 0 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 100; gap: 10px; }
-        .btn { background: var(--primary); color: white; border: none; padding: 10px 15px; border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: 600; }
+        body { margin: 0; overflow: hidden; background: var(--bg); font-family: sans-serif; }
+        .ui { position: absolute; z-index: 100; width: 100%; pointer-events: none; padding: 15px; display: flex; gap: 10px; background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .ui * { pointer-events: auto; }
+        .btn { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; }
         #file-input { display: none; }
-        .side-panel { position: absolute; top: 70px; right: 15px; width: 280px; background: white; border-radius: 15px; display: none; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,0.15); z-index: 90; overflow: hidden; max-height: 80vh; }
-        .tabs { display: flex; background: #f8f9fa; }
-        .tab { flex: 1; padding: 12px; border: none; background: none; cursor: pointer; font-weight: bold; color: #7f8c8d; border-bottom: 2px solid transparent; }
-        .tab.active { color: var(--accent); border-bottom-color: var(--accent); background: white; }
-        .content { flex: 1; overflow-y: auto; padding: 15px; }
-        .row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .card { border: 1px solid #ddd; border-radius: 8px; padding: 8px; text-align: center; cursor: pointer; }
-        .swatch { width: 100%; height: 40px; border-radius: 4px; margin-bottom: 5px; }
-        .status { position: absolute; bottom: 20px; left: 15px; right: 15px; background: white; padding: 12px 20px; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); font-size: 13px; z-index: 80; }
-        .switch { position: relative; width: 40px; height: 20px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #ccc; border-radius: 20px; transition: .3s; }
-        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: .3s; }
-        input:checked + .slider { background: var(--accent); }
-        input:checked + .slider:before { transform: translateX(20px); }
+        .menu { position: absolute; top: 70px; right: 15px; width: 260px; background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); display: none; flex-direction: column; max-height: 75vh; z-index: 90; }
+        .list { overflow-y: auto; padding: 10px; flex: 1; }
+        .item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 13px; }
+        .status { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: #2c3e50; color: white; padding: 8px 20px; border-radius: 20px; font-size: 12px; }
+        
+        /* Переключатель */
+        .sw { position: relative; width: 34px; height: 18px; }
+        .sw input { opacity: 0; width: 0; height: 0; }
+        .sl { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #ccc; border-radius: 18px; transition: .3s; }
+        .sl:before { position: absolute; content: ""; height: 12px; width: 12px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: .3s; }
+        input:checked + .sl { background: var(--accent); }
+        input:checked + .sl:before { transform: translateX(16px); }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <label class="btn" for="file-input">📂 Загрузить OBJ</label>
+    <div class="ui">
+        <label class="btn" for="file-input">📂 Выбрать OBJ</label>
         <input type="file" id="file-input" accept=".obj">
-        <button class="btn" onclick="toggleUI()">⚙️ Настройки</button>
+        <button class="btn" onclick="toggleM()">⚙️ Детали</button>
     </div>
 
-    <div class="side-panel" id="uiPanel">
-        <div class="tabs">
-            <button class="tab active" id="btn-l" onclick="setTab('l')">Блоки</button>
-            <button class="tab" id="btn-m" onclick="setTab('m')">Цвета</button>
-        </div>
-        <div id="layers-list" class="content"></div>
-        <div id="mats-list" class="content" style="display:none">
-            <div class="grid">
-                <div class="card" onclick="changeColor(0xffffff)"><div class="swatch" style="background:#fff;border:1px solid #ddd"></div>Белый</div>
-                <div class="card" onclick="changeColor(0xecd3b0)"><div class="swatch" style="background:#ecd3b0"></div>Дуб</div>
-                <div class="card" onclick="changeColor(0x2f3640)"><div class="swatch" style="background:#2f3640"></div>Графит</div>
-                <div class="card" onclick="changeColor(0x7f8c8d)"><div class="swatch" style="background:#7f8c8d"></div>Серый</div>
-            </div>
+    <div class="menu" id="menu">
+        <div style="padding: 10px; font-weight: bold; border-bottom: 1px solid #eee;">Список деталей:</div>
+        <div id="list" class="list"></div>
+        <div style="padding: 10px; border-top: 1px solid #eee;">
+            <button class="btn" style="width:100%; background: #7f8c8d" onclick="paintAll(0xffffff)">Сбросить цвет</button>
         </div>
     </div>
 
-    <div class="status" id="status">Ожидание OBJ...</div>
+    <div class="status" id="st">Загрузите файл из Базиса</div>
 
     <script type="importmap">
         { "imports": {
@@ -66,8 +55,8 @@
         import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-        let scene, camera, renderer, controls, mainGroup;
-        let blocksMap = {};
+        let scene, camera, renderer, controls, root;
+        let parts = [];
 
         function init() {
             scene = new THREE.Scene();
@@ -75,14 +64,9 @@
             camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 1000000);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
             document.body.appendChild(renderer.domElement);
-
             controls = new OrbitControls(camera, renderer.domElement);
-            scene.add(new THREE.AmbientLight(0xffffff, 1.2));
-            const light = new THREE.DirectionalLight(0xffffff, 0.4);
-            light.position.set(500, 1000, 500);
-            scene.add(light);
+            scene.add(new THREE.AmbientLight(0xffffff, 1.4));
             animate();
         }
 
@@ -91,78 +75,67 @@
         document.getElementById('file-input').onchange = (e) => {
             const file = e.target.files[0];
             const reader = new FileReader();
-            reader.onload = (event) => {
-                if (mainGroup) scene.remove(mainGroup);
-                blocksMap = {};
+            reader.onload = (ev) => {
+                if (root) scene.remove(root);
+                parts = [];
                 
-                // loader.parse возвращает группу объектов
-                mainGroup = loader.parse(event.target.result);
+                // Главная магия: загружаем OBJ
+                root = loader.parse(ev.target.result);
                 
-                // Проходим по ВСЕМ вложенным объектам
-                mainGroup.traverse(child => {
+                const listC = document.getElementById('list');
+                listC.innerHTML = '';
+
+                // Перебираем всё, что нашли внутри файла
+                root.traverse(child => {
                     if (child.isMesh) {
-                        child.material = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7 });
-                        
-                        // Создаем контуры для каждой детали
-                        const edges = new THREE.EdgesGeometry(child.geometry);
-                        const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x333333 }));
-                        child.add(line);
+                        // Каждой детали — свой уникальный материал (чтобы не красить всё сразу)
+                        child.material = new THREE.MeshStandardMaterial({ 
+                            color: 0xffffff, 
+                            roughness: 0.8 
+                        });
 
-                        // Пытаемся найти уникальное имя из Базиса
-                        let name = child.name || "Деталь";
-                        
-                        // Если Базис выгрузил все в один объект, попробуем разделить по материалам или ID
-                        if (name === "" || name.includes('default')) {
-                            name = child.userData.name || "Элемент " + (Object.keys(blocksMap).length + 1);
-                        }
+                        // Контуры
+                        const ed = new THREE.EdgesGeometry(child.geometry);
+                        const ln = new THREE.LineSegments(ed, new THREE.LineBasicMaterial({ color: 0x444444 }));
+                        child.add(ln);
 
-                        if (!blocksMap[name]) blocksMap[name] = [];
-                        blocksMap[name].push(child);
+                        // Регистрируем деталь
+                        const pName = child.name || `Деталь ${parts.length + 1}`;
+                        parts.push(child);
+
+                        // Создаем строку в меню
+                        const div = document.createElement('div');
+                        div.className = 'item';
+                        div.innerHTML = `<span>${pName}</span>
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <input type="color" onchange="window.cp('${parts.length-1}', this.value)" style="width:24px;height:24px;border:none;padding:0;background:none">
+                                <label class="sw">
+                                    <input type="checkbox" checked onchange="window.vs('${parts.length-1}', this.checked)">
+                                    <span class="sl"></span>
+                                </label>
+                            </div>`;
+                        listC.appendChild(div);
                     }
                 });
 
-                scene.add(mainGroup);
-                updateUI();
-                focusModel();
-                document.getElementById('status').innerText = "Загружено: " + file.name;
+                scene.add(root);
+                
+                // Центровка камеры
+                const b = new THREE.Box3().setFromObject(root);
+                const c = b.getCenter(new THREE.Vector3());
+                const s = b.getSize(new THREE.Vector3());
+                const m = Math.max(s.x, s.y, s.z);
+                camera.position.set(c.x + m, c.y + m, c.z + m);
+                controls.target.copy(c);
+                document.getElementById('st').innerText = `Готово: ${parts.length} деталей`;
             };
             reader.readAsText(file);
         };
 
-        function updateUI() {
-            const container = document.getElementById('layers-list');
-            container.innerHTML = '<h4>Блоки изделия:</h4>';
-            Object.keys(blocksMap).sort().forEach(name => {
-                const row = document.createElement('div');
-                row.className = 'row';
-                row.innerHTML = `<span>${name}</span>
-                    <label class="switch">
-                        <input type="checkbox" checked onchange="window.toggleB('${name}', this.checked)">
-                        <span class="slider"></span>
-                    </label>`;
-                container.appendChild(row);
-            });
-        }
-
-        function focusModel() {
-            const box = new THREE.Box3().setFromObject(mainGroup);
-            const center = box.getCenter(new THREE.Vector3());
-            const size = box.getSize(new THREE.Vector3());
-            const max = Math.max(size.x, size.y, size.z);
-            camera.position.set(center.x + max, center.y + max, center.z + max);
-            controls.target.copy(center);
-            controls.update();
-        }
-
-        window.toggleB = (n, v) => blocksMap[n].forEach(o => o.visible = v);
-        window.changeColor = (c) => mainGroup.traverse(o => { if(o.isMesh) o.material.color.set(c); });
-        window.toggleUI = () => { const p = document.getElementById('uiPanel'); p.style.display = p.style.display === 'flex' ? 'none' : 'flex'; };
-        window.setTab = (t) => {
-            document.getElementById('layers-list').style.display = t === 'l' ? 'block' : 'none';
-            document.getElementById('mats-list').style.display = t === 'm' ? 'block' : 'none';
-            document.getElementById('btn-l').classList.toggle('active', t === 'l');
-            document.getElementById('btn-m').classList.toggle('active', t === 'm');
-        };
+        window.vs = (id, v) => parts[id].visible = v;
+        window.cp = (id, c) => parts[id].material.color.set(c);
+        window.paintAll = (c) => parts.forEach(p => p.material.color.set(c));
+        window.toggleM = () => { const m = document.getElementById('menu'); m.style.display = m.style.display === 'flex' ? 'none' : 'flex'; };
 
         function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }
         init();
